@@ -11,3 +11,127 @@ execute:
 library(tidyverse)
 library(arrow)
 ```
+
+```{r}
+set.seed(9)
+open_dataset("data/daily_prices.parquet") |>
+  collect() |>
+  slice_sample(n = 10)
+```
+
+```{r}
+open_dataset("data/daily_prices.parquet") |>
+  filter(date_raw >= "2025-01-01") |>
+  summarize(
+    avg_market_cap = mean(market_cap_usd, na.rm = TRUE),
+    .by = coin_id
+  ) |>
+  arrange(desc(avg_market_cap)) |>
+  collect()
+```
+
+```{r}
+#| cache: true
+prices <- read_parquet("data/daily_prices.parquet")
+metadata <- read_parquet("data/coin_metadata.parquet")
+categories <- read_parquet("data/categories.parquet")
+
+crypto <- prices |>
+  left_join(metadata, by = "coin_id") |>
+  left_join(
+    categories |> rename(category_description = description),
+    by = "category_id"
+  ) |>
+  mutate(date = ymd(date_raw))
+```
+
+```{r}
+metadata |>
+  select(coin_id, coin_name, launch_date) |>
+  print(n = 22)
+```
+
+```{r}
+metadata <- metadata |>
+  mutate(
+    launched = coalesce(
+      ymd(launch_date, quiet = TRUE),
+      mdy(launch_date, quiet = TRUE)
+    )
+  )
+
+metadata |>
+  select(coin_id, coin_name, launch_date, launched) |>
+  arrange(launched) |>
+  print(n = 22)
+```
+
+```{r}
+prices |>
+  filter(coin_id == "btc") |>
+  mutate(date = ymd(date_raw)) |>
+  ggplot(aes(x = date, y = price_usd)) +
+  geom_line() +
+  labs(
+    title = "Bitcoin Daily Price (USD)",
+    x = "Date",
+    y = "Price (USD)"
+  )
+```
+
+```{r}
+crypto |>
+  summarize(
+    market_cap = sum(market_cap_usd, na.rm = TRUE),
+    .by = c(date, category_name)
+  ) |>
+  mutate(
+    category_name = fct_reorder(category_name, market_cap, .fun = mean, .desc = TRUE)
+  ) |>
+  ggplot(aes(x = date, y = market_cap, fill = category_name)) +
+  geom_area(position = "fill") +
+  geom_vline(
+    xintercept = as.Date(c("2022-05-09", "2022-11-09")),
+    linetype = "dashed",
+    color = "white",
+    linewidth = 0.6
+  ) +
+  annotate(
+    "text",
+    x = as.Date("2022-05-09"),
+    y = 0.92,
+    label = "Luna/UST Crash\n(May 2022)",
+    color = "white",
+    hjust = 1.05,
+    size = 3,
+    fontface = "bold"
+  ) +
+  annotate(
+    "text",
+    x = as.Date("2022-11-09"),
+    y = 0.80,
+    label = "FTX Collapse\n(Nov 2022)",
+    color = "white",
+    hjust = -0.05,
+    size = 3,
+    fontface = "bold"
+  ) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_fill_viridis_d() +
+  labs(
+    title = "Bitcoin and Smart Contract Platforms Dominate Crypto Market Cap",
+    subtitle = "Daily share of total cryptocurrency market capitalization by category (2018–2026)",
+    x = "Date",
+    y = "Share of Total Market Cap",
+    fill = "Category",
+    caption = "Source: CoinGecko / Course Crypto Dataset"
+  ) +
+  theme_minimal()
+```
+
+
+
+
+
+
+
