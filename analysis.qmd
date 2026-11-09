@@ -13,6 +13,7 @@ library(arrow)
 ```
 
 ```{r}
+#| output: false
 set.seed(9)
 open_dataset("data/daily_prices.parquet") |>
   collect() |>
@@ -20,6 +21,7 @@ open_dataset("data/daily_prices.parquet") |>
 ```
 
 ```{r}
+#| output: false
 open_dataset("data/daily_prices.parquet") |>
   filter(date_raw >= "2025-01-01") |>
   summarize(
@@ -46,12 +48,14 @@ crypto <- prices |>
 ```
 
 ```{r}
+#| output: false
 metadata |>
   select(coin_id, coin_name, launch_date) |>
   print(n = 22)
 ```
 
 ```{r}
+#| output: false
 metadata <- metadata |>
   mutate(
     launched = coalesce(
